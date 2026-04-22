@@ -1,0 +1,32 @@
+{
+    "name": "tillio-crm/oauth-client",
+    "description": "Official PHP OAuth2 client for Tillio CRM single sign-on.",
+    "type": "library",
+    "license": "MIT",
+    "keywords": ["tillio", "tillio-crm", "oauth", "oauth2", "sso", "authentication", "openid"],
+    "homepage": "https://github.com/tillio-crm/oauth-client",
+    "require": {
+        "php": "^8.4",
+        "ext-curl": "*",
+        "ext-json": "*",
+        "league/oauth2-client": "^2.7"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^11.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "TillioCrm\\OAuth\\Client\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "TillioCrm\\OAuth\\Client\\Tests\\": "tests/"
+        }
+    },
+    "config": {
+        "sort-packages": true
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
+}

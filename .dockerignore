@@ -1,0 +1,40 @@
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Composer artefacts (instalujemy je w kontenerze)
+vendor
+composer.lock
+
+# Lokalne secrets
+examples/config.php
+
+# IDE / edytory / harness
+.idea
+.vscode
+.fleet
+.claude
+
+# Testy i caches
+tests
+.phpunit.cache
+.phpunit.result.cache
+coverage
+coverage.xml
+build
+.phpstan.cache
+.psalm.cache
+
+# Docker files (nie potrzebne w imagu)
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Dokumentacja (opcjonalnie — zostawiam README dla obrazu)
+# README.md

@@ -1,0 +1,35 @@
+# Composer
+/vendor/
+/composer.lock
+/auth.json
+
+# PHPUnit
+/.phpunit.cache/
+/.phpunit.result.cache
+/coverage/
+/coverage.xml
+/build/
+
+# Static analysis caches
+/.phpstan.cache/
+/.psalm.cache/
+
+# Lokalna konfiguracja examples (zawiera secrets)
+/examples/config.php
+
+# IDE / edytory
+/.idea/
+/.vscode/
+/.fleet/
+*.swp
+*.swo
+*~
+*.bak
+
+# Claude Code harness
+/.claude/
+
+# OS-specific
+.DS_Store
+Thumbs.db
+desktop.ini

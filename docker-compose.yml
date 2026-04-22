@@ -1,0 +1,11 @@
+services:
+  oauth:
+    build: .
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/app
+    extra_hosts:
+      # Pozwala z kontenera wywołać API hosta po "host.docker.internal".
+      # Windows/Mac ma to automatycznie; na Linuksie trzeba wskazać host-gateway.
+      - "host.docker.internal:host-gateway"
