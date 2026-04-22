@@ -42,7 +42,7 @@ błędów — wszystkie dziedziczą po `TillioOAuthException`).
 
 ## Konwencje kodu
 
-- **PHP ^8.4** — używaj `readonly`, typed constants (`const string/int`),
+- **PHP ^8.3** — używaj `readonly`, typed constants (`const string/int`),
   `never` return type, `declare(strict_types=1)` w każdym pliku.
 - **Brak komentarzy WHAT** — nazwy mówią. Komentarz tylko gdy WHY jest
   nieoczywiste (np. „Prevent session fixation" przed `regenerate()`).
@@ -55,7 +55,7 @@ błędów — wszystkie dziedziczą po `TillioOAuthException`).
 
 ## Zależności
 
-- `php ^8.4`, `ext-curl`, `ext-json`
+- `php ^8.3`, `ext-curl`, `ext-json`
 - `league/oauth2-client ^2.7`
 - **Dev:** `phpunit/phpunit ^11`
 
@@ -101,7 +101,7 @@ Przy zmianach w tych miejscach — zaktualizuj odpowiedni test.
 
 ## Kompatybilność
 
-- **PHP** — tylko `^8.4`. Nie robimy polyfillów dla starszych wersji.
+- **PHP** — tylko `^8.3`. Nie robimy polyfillów dla starszych wersji.
 - **Framework‑agnostic** — żadnego importu Symfony/Laravel w `src/`.
   Integracje idą przez `SessionStorageInterface` i ewentualne adaptery
   (w przyszłości jako osobne pakiety, jeśli będą potrzebne).

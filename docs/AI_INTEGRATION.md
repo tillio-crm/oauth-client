@@ -11,7 +11,7 @@ Plik jest celowo gęsty: zero prozy, dużo konkretów i gotowych snippetów.
 ## 1. Copy‑paste prompt do AI
 
 > Zintegruj logowanie przez Tillio CRM używając pakietu Composer
-> `tillio-crm/oauth-client` (PHP `^8.4`). Wymagania:
+> `tillio-crm/oauth-client` (PHP `^8.3`). Wymagania:
 >
 > - Flow: OAuth 2.0 Authorization Code + PKCE (S256) — biblioteka robi to sama.
 > - 3 endpointy/strony w moim aplikacji: `/login` (start), `/callback`

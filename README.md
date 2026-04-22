@@ -8,7 +8,7 @@ które developer otrzymuje z panelu Tillio.
 
 [![Latest Version](https://img.shields.io/packagist/v/tillio-crm/oauth-client.svg)](https://packagist.org/packages/tillio-crm/oauth-client)
 [![Total Downloads](https://img.shields.io/packagist/dt/tillio-crm/oauth-client.svg)](https://packagist.org/packages/tillio-crm/oauth-client)
-[![PHP Version](https://img.shields.io/badge/php-%5E8.4-blue)](https://www.php.net/)
+[![PHP Version](https://img.shields.io/badge/php-%5E8.3-blue)](https://www.php.net/)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
 Flow: **OAuth 2.0 Authorization Code + PKCE (S256)** na bazie
@@ -40,7 +40,7 @@ Flow: **OAuth 2.0 Authorization Code + PKCE (S256)** na bazie
 
 ## Wymagania
 
-- PHP `^8.4`
+- PHP `^8.3`
 - rozszerzenia: `ext-curl`, `ext-json`
 - Composer
 

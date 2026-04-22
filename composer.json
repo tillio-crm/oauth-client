@@ -6,7 +6,7 @@
     "keywords": ["tillio", "tillio-crm", "oauth", "oauth2", "sso", "authentication", "openid"],
     "homepage": "https://github.com/tillio-crm/oauth-client",
     "require": {
-        "php": "^8.4",
+        "php": "^8.3",
         "ext-curl": "*",
         "ext-json": "*",
         "league/oauth2-client": "^2.7"
