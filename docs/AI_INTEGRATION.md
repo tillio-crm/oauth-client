@@ -22,8 +22,10 @@ Plik jest celowo gęsty: zero prozy, dużo konkretów i gotowych snippetów.
 > - `clientId` / `clientSecret` / `redirectUri` czytaj z ENV, nie hardkoduj.
 > - Po callback: przekieruj usera na stronę, z której przyszedł (jeśli to
 >   trackujesz), inaczej na `/`.
-> - Po logout: wywołaj `$client->logout()` (sam revoke + clear session) i
->   przekieruj na `/`.
+> - Po logout: wywołaj `$client->logout()` — kończy sesję OAuth na serwerze
+>   (rewokuje access + wszystkie refresh tokeny, kasuje sesję OAuth) i czyści
+>   sesję lokalną. Potem przekieruj na `/`, albo na `$client->endSessionUrl(...)`
+>   jeśli logout ma się domknąć również w przeglądarce.
 > - Catch‑uj `AuthorizationDeniedException` osobno (user kliknął „Odmów",
 >   pokaż mu przyjazny komunikat), resztę jako generyczny błąd 400/500.
 > - Upewnij się, że `session_start()` jest wołane **przed** utworzeniem
@@ -114,8 +116,14 @@ try {
 $client = require __DIR__ . '/../src/bootstrap.php';
 
 if (isset($_GET['logout'])) {
-    $client->logout();
+    $client->logout(); // rewokuje tokeny + kasuje sesję OAuth + czyści sesję lokalną
+
+    // Wariant A: zostajemy w aplikacji.
     header('Location: /');
+
+    // Wariant B: domknij logout też po stronie Tillio (przeglądarkowo):
+    // header('Location: ' . $client->endSessionUrl('https://twoja-app.example/'));
+
     exit;
 }
 
@@ -200,6 +208,12 @@ final class LaravelTillioSession implements SessionStorageInterface
 
 ## 5. Shape danych zwracanych przez bibliotekę
 
+> ⚠️ **Serwer gate'uje dane po scope.** Sekcja jest w odpowiedzi tylko gdy token
+> ma odpowiedni scope. Domyślne scope'y (`profile`, `email`, `openid`,
+> `offline_access`) **nie** zawierają `workspace` ani `acl` — jeśli ich
+> potrzebujesz, zażądaj ich jawnie przy logowaniu. Zawsze wracaj z fallbackiem
+> na `null` / `[]`.
+
 **`$client->user()` → `TillioResourceOwner`:**
 ```
 getId()        → string (numeryczny ID)
@@ -210,12 +224,46 @@ getLastName()  → string
 getName()      → string (first + last)
 getEmail()     → string
 getAvatarUrl() → string (URL)
+getWorkspace() → ?array  (scope `workspace`)
 toArray()      → array (raw)
 ```
 
-**`$client->profile()` → `array`** — rozszerzone dane; shape zależy od serwera,
-traktuj jako `array<string, mixed>`. Do UI bierz pola, których potrzebujesz,
-zawsze z fallbackiem na `null`.
+**`$client->profile()` → `array`** — rozszerzone dane z
+`/api/v1/auth/user/profile`. Zamiast grzebać po kluczach, owiń w `TillioProfile`:
+
+```php
+use TillioCrm\OAuth\Client\TillioProfile;
+
+$profile = new TillioProfile($client->profile());
+
+$profile->getTillioId();           // zawsze
+$profile->getName();               // scope profile
+$profile->getEmail();              // scope email
+$profile->getWorkspace();          // scope workspace       → ?array
+$profile->getAcl();                // scope acl             → array
+$profile->isWorkspaceSuperAdmin(); // scope acl             → bool
+$profile->getRoleIds();            // scope acl             → list<int>
+$profile->getOrganization();       // scope organization    → ?array (nazwa, tax_id/NIP, adres)
+$profile->getContact();            // scope profile_contact → ?array (phone, email)
+```
+
+**Scope'y** — używaj stałych `TillioProvider::SCOPE_*` zamiast stringów:
+
+```php
+use TillioCrm\OAuth\Client\TillioProvider;
+
+$client->redirectToLogin([
+    TillioProvider::SCOPE_OPENID,
+    TillioProvider::SCOPE_PROFILE,
+    TillioProvider::SCOPE_EMAIL,
+    TillioProvider::SCOPE_WORKSPACE,
+    TillioProvider::SCOPE_ACL,
+]);
+```
+
+`organization` wymaga uprawnień po stronie Tillio — gdy user ich nie ma,
+`getOrganization()` zwróci `null` mimo przyznanego scope. To poprawny stan,
+nie błąd.
 
 ---
 
@@ -241,6 +289,14 @@ TillioOAuthException              # bazowy — łap go jako fallback
   w `accessToken()`/`user()`.
 - ❌ **Cache'owanie `profile()` w sesji na zawsze** — biblioteka celowo hit‑uje
   serwer; jeśli chcesz cache, rób TTL po swojej stronie.
+- ❌ **Zakładanie, że `workspace` / `acl` / `organization` zawsze są w odpowiedzi** —
+  są gate'owane po scope. Brak sekcji to nie błąd serwera, tylko nieprzyznany
+  scope (albo brak uprawnień usera przy `organization`). Zażądaj scope przy
+  logowaniu i tak czy siak koduj z fallbackiem.
+- ❌ **Ręczne wołanie `/api/v1/auth/revoke` jako „wylogowania"** — `revoke`
+  (RFC 7009) unieważnia **tylko** przekazany token; refresh token dalej działa
+  i sesja OAuth zostaje, więc user potrafi „wrócić" zalogowany. Do wylogowania
+  służy `$client->logout()` (`/api/v1/auth/logout`).
 - ❌ **Wywoływanie `session_destroy()` po `logout()`** — biblioteka już
   wyczyściła swoją część sesji, reszta (twoje appowe dane) zostaje nietknięta —
   **to feature**, nie bug.
@@ -258,7 +314,9 @@ Po integracji ma się dać klikalnie przetestować:
 3. User loguje się w Tillio → wraca na `/callback?code=...&state=...`.
 4. `/callback` wymienia kod na token, zapisuje usera w sesji, redirect na `/`.
 5. `/` pokazuje email + avatar zalogowanego.
-6. Klik „Wyloguj" → `/callback?logout=1` lub `/?logout=1` → revoke + clear,
-   redirect na `/`.
+6. Klik „Wyloguj" → `/callback?logout=1` lub `/?logout=1` → sesja OAuth
+   skasowana na serwerze + sesja lokalna wyczyszczona, redirect na `/`.
+7. Ponowne wejście na `/` → znowu redirect na `/login` (refresh token też został
+   unieważniony, więc nie ma cichego wskrzeszenia sesji).
 
 Jeśli coś z powyższych nie działa, idź po checklist z sekcji 3.

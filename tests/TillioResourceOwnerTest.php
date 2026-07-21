@@ -42,6 +42,22 @@ final class TillioResourceOwnerTest extends TestCase
         self::assertSame(self::SAMPLE, $owner->toArray());
     }
 
+    public function test_get_workspace_returns_section_when_present(): void
+    {
+        $owner = new TillioResourceOwner(self::SAMPLE + [
+            'workspace' => ['id' => 4, 'slug' => 'lukgor', 'name' => 'Tillio'],
+        ]);
+
+        self::assertSame(['id' => 4, 'slug' => 'lukgor', 'name' => 'Tillio'], $owner->getWorkspace());
+    }
+
+    public function test_get_workspace_is_null_without_workspace_scope(): void
+    {
+        $owner = new TillioResourceOwner(self::SAMPLE);
+
+        self::assertNull($owner->getWorkspace());
+    }
+
     public function test_all_getters_return_null_for_empty_response(): void
     {
         $owner = new TillioResourceOwner([]);

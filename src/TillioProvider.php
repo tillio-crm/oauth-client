@@ -21,7 +21,29 @@ final class TillioProvider extends AbstractProvider
     public const string PATH_TOKEN        = '/api/v1/auth/token';
     public const string PATH_USER         = '/api/v1/auth/user';
     public const string PATH_USER_PROFILE = '/api/v1/auth/user/profile';
-    public const string PATH_REVOKE       = '/api/v1/auth/revoke';
+
+    /** RFC 7009 — rewokuje wyłącznie przekazany token. Nie kończy sesji OAuth. */
+    public const string PATH_REVOKE = '/api/v1/auth/revoke';
+
+    /** Pełny logout — rewokuje access + wszystkie refresh tokeny pary (user, client) i kasuje sesję OAuth. */
+    public const string PATH_LOGOUT = '/api/v1/auth/logout';
+
+    /** OIDC RP-Initiated Logout — przeglądarkowy, per-aplikacja. Nie rusza sesji SSO Tillio. */
+    public const string PATH_END_SESSION = '/auth/logout';
+
+    /**
+     * Scope'y wspierane przez serwer Tillio. Serwer GATE'uje dane po scope —
+     * pole/sekcja pojawia się w odpowiedzi tylko gdy odpowiedni scope został przyznany.
+     */
+    public const string SCOPE_OPENID          = 'openid';
+    public const string SCOPE_PROFILE         = 'profile';         // first_name, last_name, avatar_url, post, settings
+    public const string SCOPE_EMAIL           = 'email';           // email (login)
+    public const string SCOPE_OFFLINE_ACCESS  = 'offline_access';  // refresh token
+    public const string SCOPE_WORKSPACE       = 'workspace';       // sekcja workspace
+    public const string SCOPE_ACL             = 'acl';             // acl + is_workspace_superadmin + role_ids
+    public const string SCOPE_ORGANIZATION    = 'organization';    // dane rejestrowe firmy (wymaga uprawnień)
+    public const string SCOPE_PROFILE_CONTACT = 'profile_contact'; // telefon + e-mail kontaktowy
+    public const string SCOPE_TILLIO_CLIENT   = 'tillio_client';   // zautomatyzowane działania w imieniu usera
 
     /**
      * URL do którego przekierowujemy browser użytkownika (authorize).
@@ -83,9 +105,28 @@ final class TillioProvider extends AbstractProvider
         return $this->internalServer . self::PATH_REVOKE;
     }
 
+    public function getLogoutUrl(): string
+    {
+        return $this->internalServer . self::PATH_LOGOUT;
+    }
+
+    /**
+     * URL przeglądarkowego wylogowania OIDC (`end_session`). Browser-facing,
+     * więc buduje się na `server`, nie `internalServer`.
+     *
+     * @param array<string, string|null> $params np. client_id, post_logout_redirect_uri, state, id_token_hint
+     */
+    public function getEndSessionUrl(array $params = []): string
+    {
+        $query = array_filter($params, static fn(?string $value): bool => $value !== null && $value !== '');
+        $url   = $this->server . self::PATH_END_SESSION;
+
+        return $query === [] ? $url : $url . '?' . http_build_query($query);
+    }
+
     protected function getDefaultScopes(): array
     {
-        return ['profile', 'email', 'openid', 'offline_access'];
+        return [self::SCOPE_PROFILE, self::SCOPE_EMAIL, self::SCOPE_OPENID, self::SCOPE_OFFLINE_ACCESS];
     }
 
     protected function getScopeSeparator(): string

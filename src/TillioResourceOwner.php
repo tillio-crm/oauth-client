@@ -58,6 +58,18 @@ final class TillioResourceOwner implements ResourceOwnerInterface
         return $this->response['avatar_url'] ?? null;
     }
 
+    /**
+     * Sekcja `workspace` — obecna tylko gdy token ma scope `workspace`.
+     *
+     * @return array<string, mixed>|null
+     */
+    public function getWorkspace(): ?array
+    {
+        $workspace = $this->response['workspace'] ?? null;
+
+        return is_array($workspace) ? $workspace : null;
+    }
+
     public function toArray(): array
     {
         return $this->response;

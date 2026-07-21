@@ -197,4 +197,25 @@ final class ClientTest extends TestCase
 
         self::assertFalse($this->session->has('user'));
     }
+
+    public function test_end_session_url_carries_client_id_and_redirect(): void
+    {
+        $client = new Client(self::BASE_CONFIG + ['server' => 'http://localhost:8080'], $this->session);
+
+        $url = $client->endSessionUrl('http://localhost/bye', 'state-42');
+
+        self::assertStringStartsWith('http://localhost:8080/auth/logout?', $url);
+        self::assertStringContainsString('client_id=client-123', $url);
+        self::assertStringContainsString('post_logout_redirect_uri=' . rawurlencode('http://localhost/bye'), $url);
+        self::assertStringContainsString('state=state-42', $url);
+    }
+
+    public function test_end_session_url_without_redirect_has_only_client_id(): void
+    {
+        $client = new Client(self::BASE_CONFIG + ['server' => 'http://localhost:8080'], $this->session);
+
+        $url = $client->endSessionUrl();
+
+        self::assertSame('http://localhost:8080/auth/logout?client_id=client-123', $url);
+    }
 }

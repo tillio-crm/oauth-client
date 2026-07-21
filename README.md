@@ -126,8 +126,41 @@ Pełna działająca wersja z Dockerem → [`examples/`](examples/).
 | `redirectUri`   | tak      | —                                               | URL, pod który Tillio odeśle użytkownika po logowaniu.            |
 | `server`        | nie      | `https://auth.tillio.app`                       | Base URL serwera — używany do redirectu przeglądarki (authorize). |
 | `internalServer`| nie      | wartość `server`                                | Base URL dla wywołań server-to-server (token/user/profile/revoke).|
-| `scopes`        | nie      | `['profile','email','openid','offline_access']` | Zakres uprawnień.                                                 |
+| `scopes`        | nie      | `['profile','email','openid','offline_access']` | Zakres uprawnień — patrz [Scope'y](#scopey).                      |
 | `usePkce`       | nie      | `true`                                          | PKCE (RFC 7636, S256). Wyłącz tylko na żądanie.                   |
+
+### Scope'y
+
+**Serwer Tillio gate'uje dane po scope** — sekcja pojawia się w odpowiedzi
+`/api/v1/auth/user` i `/api/v1/auth/user/profile` **tylko** gdy token ma
+odpowiedni scope. Domyślne scope'y są minimalne, więc np. `workspace` nie
+wróci, dopóki go nie zażądasz.
+
+| Scope             | Stała `TillioProvider::`  | Co odblokowuje                                        |
+|-------------------|---------------------------|-------------------------------------------------------|
+| `openid`          | `SCOPE_OPENID`            | Identyfikator OIDC.                                    |
+| `profile`         | `SCOPE_PROFILE`           | `first_name`, `last_name`, `avatar_url`, `post`, `settings` |
+| `email`           | `SCOPE_EMAIL`             | `email` (adres logowania).                             |
+| `offline_access`  | `SCOPE_OFFLINE_ACCESS`    | Refresh token (sesja bez ponownego logowania).         |
+| `workspace`       | `SCOPE_WORKSPACE`         | Sekcja `workspace` (id, slug, nazwa, domena, logo).    |
+| `acl`             | `SCOPE_ACL`               | `acl`, `is_workspace_superadmin`, `role_ids`.          |
+| `organization`    | `SCOPE_ORGANIZATION`      | `organization` — dane rejestrowe firmy (nazwa, NIP, adres). Wymaga uprawnień w Tillio; bez nich `null`. |
+| `profile_contact` | `SCOPE_PROFILE_CONTACT`   | `profile_contact` — telefon + e-mail kontaktowy.       |
+| `tillio_client`   | `SCOPE_TILLIO_CLIENT`     | Zautomatyzowane działania na koncie w imieniu użytkownika. |
+
+`tillio_id` jest zwracane zawsze (identyfikator konta, odpowiednik `sub`).
+
+```php
+use TillioCrm\OAuth\Client\TillioProvider;
+
+$client->redirectToLogin([
+    TillioProvider::SCOPE_OPENID,
+    TillioProvider::SCOPE_PROFILE,
+    TillioProvider::SCOPE_EMAIL,
+    TillioProvider::SCOPE_WORKSPACE,
+    TillioProvider::SCOPE_ACL,
+]);
+```
 
 ### Development w Dockerze
 
@@ -182,7 +215,8 @@ jest po stronie aplikacji), zostaw pustą implementację.
 | `profile(): array`                             | Rozszerzone dane z `/api/v1/auth/user/profile`. Zawsze hit do serwera.                    |
 | `accessToken(): string`                        | Zwraca ważny access token (auto-refresh, jeśli wygasa).                                   |
 | `refreshUser(): TillioResourceOwner`           | Wymusza ponowne pobranie danych użytkownika z serwera.                                    |
-| `logout(): void`                               | Odwołuje token na serwerze (`/api/v1/auth/revoke`) i czyści sesję.                        |
+| `logout(): void`                               | Kończy sesję OAuth na serwerze (`/api/v1/auth/logout`) i czyści sesję lokalną.            |
+| `endSessionUrl(?string $redirect, ?string $state): string` | URL przeglądarkowego wylogowania OIDC dla tej aplikacji.                     |
 | `getProvider(): TillioProvider`                | Dostęp do bazowego providera `league/oauth2-client` (escape hatch).                      |
 
 ### Klasa `TillioResourceOwner`
@@ -197,7 +231,69 @@ jest po stronie aplikacji), zostaw pustą implementację.
 | `getName()`         | `?string` | `first_name + last_name`  |
 | `getEmail()`        | `?string` | `email`                   |
 | `getAvatarUrl()`    | `?string` | `avatar_url`              |
+| `getWorkspace()`    | `?array`  | `workspace` (scope `workspace`) |
 | `toArray()`         | `array`   | surowa odpowiedź serwera  |
+
+### Klasa `TillioProfile`
+
+Typowany wrapper na `Client::profile()`. `profile()` nadal zwraca surowy
+`array` — `TillioProfile` owija go, żeby nie grzebać po kluczach:
+
+```php
+use TillioCrm\OAuth\Client\TillioProfile;
+
+$profile = new TillioProfile($client->profile());
+
+if ($profile->isWorkspaceSuperAdmin()) {
+    $nip = $profile->getOrganization()['tax_id'] ?? null;
+}
+```
+
+Gettery zwracają `null` / `[]` / `false`, gdy sekcji nie ma w odpowiedzi
+(bo scope nie został przyznany albo user nie ma uprawnień).
+
+| Metoda                      | Zwraca    | Wymagany scope    |
+|-----------------------------|-----------|-------------------|
+| `getTillioId()`             | `?string` | — (zawsze)        |
+| `getFirstName()`            | `?string` | `profile`         |
+| `getLastName()`             | `?string` | `profile`         |
+| `getName()`                 | `?string` | `profile`         |
+| `getPost()`                 | `?string` | `profile`         |
+| `getAvatarUrl()`            | `?string` | `profile`         |
+| `getSettings()`             | `array`   | `profile`         |
+| `getEmail()`                | `?string` | `email`           |
+| `getWorkspace()`            | `?array`  | `workspace`       |
+| `getAcl()`                  | `array`   | `acl`             |
+| `isWorkspaceSuperAdmin()`   | `bool`    | `acl`             |
+| `getRoleIds()`              | `list<int>` | `acl`           |
+| `getOrganization()`         | `?array`  | `organization`    |
+| `getContact()`              | `?array`  | `profile_contact` |
+| `toArray()`                 | `array`   | surowa odpowiedź  |
+
+## Wylogowanie
+
+Serwer Tillio ma **trzy** różne operacje — łatwo je pomylić:
+
+| Endpoint                  | Co robi                                                                                     | Kiedy używać |
+|---------------------------|---------------------------------------------------------------------------------------------|--------------|
+| `POST /api/v1/auth/revoke`| Rewokuje **tylko** przekazany token. Refresh token dalej działa, sesja OAuth zostaje.        | Rzadko — punktowe unieważnienie jednego tokena. |
+| `POST /api/v1/auth/logout`| Rewokuje access + **wszystkie** refresh tokeny pary (user, client) i **kasuje sesję OAuth**. | Normalne wylogowanie z aplikacji. **Używa tego `Client::logout()`.** |
+| `GET /auth/logout`        | OIDC end_session — wylogowanie **z przeglądarki**, per aplikacja. Nie rusza sesji SSO Tillio.| Gdy chcesz domknąć logout także po stronie Tillio. |
+
+```php
+$client->logout();                     // rewokuje tokeny + kasuje sesję OAuth + czyści sesję lokalną
+
+// Opcjonalnie: domknij logout w przeglądarce
+header('Location: ' . $client->endSessionUrl('https://twoja-app.example/wylogowano'));
+exit;
+```
+
+**Uwaga:** `post_logout_redirect_uri` jest walidowane po **originie** (scheme + host +
+port) względem URI zarejestrowanych dla klienta. Niepasujący adres → strona błędu
+po stronie Tillio.
+
+`logout()` **nie** wylogowuje użytkownika z innych aplikacji — sesja SSO Tillio
+zostaje nietknięta. To celowe: logout jest per-aplikacja.
 
 ### Wyjątki
 

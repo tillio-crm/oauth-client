@@ -262,7 +262,15 @@ final class Client
     }
 
     /**
-     * Revokes the access token on the server and clears the session.
+     * Kończy sesję OAuth po stronie serwera (`/api/v1/auth/logout`) i czyści sesję lokalną.
+     *
+     * Serwer rewokuje access token, WSZYSTKIE refresh tokeny pary (user, client)
+     * i kasuje rekord sesji OAuth — sam `revoke` (RFC 7009) tego nie robi i zostawiłby
+     * działający refresh token.
+     *
+     * Nie rusza sesji SSO Tillio — inne aplikacje pozostają zalogowane. Żeby wylogować
+     * użytkownika także w przeglądarce, przekieruj go na `endSessionUrl()`.
+     *
      * Silently ignores network errors — local session is always cleared.
      */
     public function logout(): void
@@ -271,13 +279,30 @@ final class Client
 
         if (is_array($tokens) && isset($tokens['access_token'])) {
             try {
-                $this->revokeRemote((string) $tokens['access_token']);
+                $this->logoutRemote((string) $tokens['access_token']);
             } catch (Throwable) {
                 // ignore — session will be cleared anyway
             }
         }
 
         $this->session->clear();
+    }
+
+    /**
+     * URL przeglądarkowego wylogowania OIDC (`end_session`) dla TEJ aplikacji.
+     * Przekieruj tam browser po `logout()`, jeśli chcesz zamknąć też sesję po stronie Tillio
+     * dla tego klienta.
+     *
+     * `$postLogoutRedirectUri` musi pasować originem (scheme+host+port) do URI
+     * zarejestrowanych dla klienta — inaczej serwer pokaże stronę błędu.
+     */
+    public function endSessionUrl(?string $postLogoutRedirectUri = null, ?string $state = null): string
+    {
+        return $this->provider->getEndSessionUrl([
+            'client_id'                => $this->clientId,
+            'post_logout_redirect_uri' => $postLogoutRedirectUri,
+            'state'                    => $state,
+        ]);
     }
 
     public function getProvider(): TillioProvider
@@ -339,11 +364,11 @@ final class Client
         return time() >= ((int) $tokens['expires'] - self::REFRESH_LEEWAY_SECONDS);
     }
 
-    private function revokeRemote(string $token): void
+    private function logoutRemote(string $token): void
     {
         $request = $this->provider->getRequestFactory()->getRequestWithOptions(
             'POST',
-            $this->provider->getRevokeUrl(),
+            $this->provider->getLogoutUrl(),
             [
                 'headers' => ['Content-Type' => 'application/json'],
                 'body'    => json_encode([
