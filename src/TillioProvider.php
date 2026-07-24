@@ -44,6 +44,7 @@ final class TillioProvider extends AbstractProvider
     public const string SCOPE_ORGANIZATION    = 'organization';    // dane rejestrowe firmy (wymaga uprawnień)
     public const string SCOPE_PROFILE_CONTACT = 'profile_contact'; // telefon + e-mail kontaktowy
     public const string SCOPE_TILLIO_CLIENT   = 'tillio_client';   // zautomatyzowane działania w imieniu usera
+    public const string SCOPE_APP_STORAGE     = 'app_storage';     // storage proxy: dokumenty + pliki apki per workspace
 
     /**
      * URL do którego przekierowujemy browser użytkownika (authorize).

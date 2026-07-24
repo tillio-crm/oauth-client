@@ -147,8 +147,14 @@ wróci, dopóki go nie zażądasz.
 | `organization`    | `SCOPE_ORGANIZATION`      | `organization` — dane rejestrowe firmy (nazwa, NIP, adres). Wymaga uprawnień w Tillio; bez nich `null`. |
 | `profile_contact` | `SCOPE_PROFILE_CONTACT`   | `profile_contact` — telefon + e-mail kontaktowy.       |
 | `tillio_client`   | `SCOPE_TILLIO_CLIENT`     | Zautomatyzowane działania na koncie w imieniu użytkownika. |
+| `app_storage`     | `SCOPE_APP_STORAGE`       | Storage proxy apki: dokumenty (`/api/v1/apps/storage/*`) i pliki (`/api/v1/apps/files/*`). Prywatna przestrzeń apki per workspace — bez dostępu do danych CRM ani innych apek. |
 
 `tillio_id` jest zwracane zawsze (identyfikator konta, odpowiednik `sub`).
+
+`app_storage` dotyczy tylko klientów będących **apkami marketplace** (klient ze
+slugiem) i działa wyłącznie w workspace'ach z **aktywną instalacją** apki —
+token ze scope'em, ale bez instalacji, dostanie `401 access_denied` na
+endpointach storage.
 
 ```php
 use TillioCrm\OAuth\Client\TillioProvider;
