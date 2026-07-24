@@ -88,13 +88,22 @@ final class Client
      * Build authorization URL and persist state (+ PKCE verifier) in session.
      * Use this when you want to render a link instead of redirecting.
      *
-     * @param list<string> $scopes
+     * `$params` dokleja dodatkowe parametry do URL-a autoryzacji — m.in. `workspace`
+     * (slug albo domena), dzięki któremu ekran logowania od razu celuje we właściwy
+     * workspace i użytkownik nie musi go wpisywać. Parametry zarządzane przez SDK
+     * (`scope`, `state`, `code_challenge*`, `redirect_uri`) są chronione przed nadpisaniem.
+     *
+     * @param list<string>         $scopes
+     * @param array<string, mixed> $params
      */
-    public function getAuthorizationUrl(array $scopes = []): string
+    public function getAuthorizationUrl(array $scopes = [], array $params = []): string
     {
-        $url = $this->provider->getAuthorizationUrl([
-            'scope' => $scopes !== [] ? $scopes : $this->defaultScopes,
-        ]);
+        $reserved = ['scope', 'state', 'response_type', 'client_id', 'redirect_uri', 'code_challenge', 'code_challenge_method'];
+
+        $url = $this->provider->getAuthorizationUrl(array_merge(
+            array_diff_key($params, array_flip($reserved)),
+            ['scope' => $scopes !== [] ? $scopes : $this->defaultScopes],
+        ));
 
         $this->session->set(self::KEY_STATE, $this->provider->getState());
 
@@ -108,11 +117,12 @@ final class Client
     /**
      * Redirects the browser to the Tillio authorization page. Terminates the script.
      *
-     * @param list<string> $scopes
+     * @param list<string>         $scopes
+     * @param array<string, mixed> $params dodatkowe parametry autoryzacji (np. `workspace`)
      */
-    public function redirectToLogin(array $scopes = []): never
+    public function redirectToLogin(array $scopes = [], array $params = []): never
     {
-        $url = $this->getAuthorizationUrl($scopes);
+        $url = $this->getAuthorizationUrl($scopes, $params);
         header('Location: ' . $url);
         exit;
     }
