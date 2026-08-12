@@ -356,7 +356,7 @@ Po Twojej stronie zadbaj o:
   ```
 
 Jeśli znajdziesz lukę bezpieczeństwa, nie zgłaszaj jej publicznie. Napisz na
-`security@tillio.app`.
+`pomoc@tillio.pl`.
 
 ## Testy
 
